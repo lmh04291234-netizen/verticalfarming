@@ -535,11 +535,11 @@
       cap.rotation.z = Math.PI / 2;
       cap.position.set(-0.5, 0.06, 0);
       pump.add(body, cap);
-      pump.position.set(r.x - 1.1, r.y + 0.25, r.z - 0.05);
+      pump.position.set(r.x - 1.95, r.y + 0.25, r.z - 0.05);
       scene.add(pump);
 
       addLabel("대형 플라스틱 양액통", new THREE.Vector3(r.x + 0.35, r.y + r.height + 0.35, r.z + 0.82));
-      addLabel("양액통 바닥의 수중펌프", new THREE.Vector3(r.x - 1.25, r.y + 0.48, r.z - 0.35));
+      addLabel("양액통 바닥의 수중펌프", new THREE.Vector3(r.x - 2.25, r.y + 0.48, r.z - 0.35));
     }
 
     function buildBeds() {
@@ -1134,11 +1134,11 @@
       const inletZ = CONFIG.bed.z + CONFIG.bed.depth / 2 - 0.38;
       const valveOffset5cm = CONFIG.rack.width * (0.05 / CONFIG.rack.realWidthM);
       const supplyTopY = CONFIG.rack.levelY[2] + 0.38 + 0.92 + valveOffset5cm;
-      const pumpOutlet = new THREE.Vector3(r.x - 1.1, r.y + 0.28, r.z - 0.05);
+      const pumpOutlet = new THREE.Vector3(r.x - 1.95, r.y + 0.28, r.z - 0.05);
       const tankOpening = new THREE.Vector3(r.x - 2.35, r.y + r.height + 0.22, r.z + r.depth * 0.32);
       const hoseExit = new THREE.Vector3(r.x - 2.55, r.y + r.height + 0.5, supplyZ);
       const supplyBase = new THREE.Vector3(supplyX, 1.16, supplyZ);
-      addSmoothHoseCurve([pumpOutlet, new THREE.Vector3(r.x - 1.35, r.y + 0.9, r.z + 0.25), tankOpening, hoseExit, supplyBase], CONFIG.pipe.radius * 1.35, materials.blueHose);
+      addSmoothHoseCurve([pumpOutlet, new THREE.Vector3(r.x - 2.05, r.y + 0.9, r.z + 0.25), tankOpening, hoseExit, supplyBase], CONFIG.pipe.radius * 1.35, materials.blueHose);
       addPipe(new THREE.Vector3(supplyX, 1.28, supplyZ), new THREE.Vector3(supplyX, supplyTopY, supplyZ), CONFIG.pipe.radius, materials.pipe);
 
       const drainStarts = [];
@@ -1217,14 +1217,14 @@
       const valveOffset5cm = CONFIG.rack.width * (0.05 / CONFIG.rack.realWidthM);
       const supplyTopY = CONFIG.rack.levelY[2] + 0.38 + 0.92 + valveOffset5cm;
 
-      const pumpOutlet = new THREE.Vector3(res.x - 1.1, res.y + 0.28, res.z - 0.05);
+      const pumpOutlet = new THREE.Vector3(res.x - 1.95, res.y + 0.28, res.z - 0.05);
       const tankOpening = new THREE.Vector3(res.x - 2.35, res.y + res.height + 0.22, res.z + res.depth * 0.32);
       const hoseExit = new THREE.Vector3(res.x - 2.55, res.y + res.height + 0.5, supplyZ);
       const supplyBase = new THREE.Vector3(supplyX, 1.16, supplyZ);
       addPathCurve(makeCurvePath([
         new THREE.CatmullRomCurve3([
           pumpOutlet,
-          new THREE.Vector3(res.x - 1.35, res.y + 0.9, res.z + 0.25),
+          new THREE.Vector3(res.x - 2.05, res.y + 0.9, res.z + 0.25),
           tankOpening,
           hoseExit,
           supplyBase
