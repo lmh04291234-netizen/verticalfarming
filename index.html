@@ -1,0 +1,1646 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3단 순환식 수경재배 3D 모델</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --panel: rgba(255, 255, 255, 0.9);
+      --line: rgba(40, 48, 58, 0.18);
+      --text: #17202a;
+      --muted: #586574;
+      --accent: #0b7fab;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, "Malgun Gothic", sans-serif;
+      color: var(--text);
+      background: #eef2f1;
+    }
+
+    #app {
+      position: fixed;
+      inset: 0;
+    }
+
+    .label {
+      padding: 4px 7px;
+      border: 1px solid rgba(20, 28, 36, 0.18);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.86);
+      color: #111820;
+      font-size: 12px;
+      line-height: 1.2;
+      white-space: nowrap;
+      box-shadow: 0 3px 10px rgba(20, 28, 36, 0.14);
+      pointer-events: none;
+    }
+
+    .hud {
+      position: fixed;
+      left: 14px;
+      top: 14px;
+      width: min(330px, calc(100vw - 28px));
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(27, 38, 49, 0.12);
+      z-index: 5;
+    }
+
+    .hud h1 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .hud p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .control {
+      display: grid;
+      grid-template-columns: 88px 1fr 38px;
+      align-items: center;
+      gap: 8px;
+      min-height: 28px;
+      font-size: 12px;
+    }
+
+    .control label {
+      color: #25313d;
+    }
+
+    .control output {
+      text-align: right;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sim-readout {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin: 8px 0 10px;
+    }
+
+    .metric {
+      min-height: 44px;
+      padding: 7px;
+      border: 1px solid rgba(20, 28, 36, 0.12);
+      border-radius: 6px;
+      background: rgba(248, 250, 249, 0.9);
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      color: #111820;
+      font-size: 13px;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .toggles {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 9px;
+    }
+
+    .toggles button {
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f8faf9;
+      color: #1d2833;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toggles button.active {
+      border-color: rgba(11, 127, 171, 0.5);
+      background: #e5f5fa;
+      color: #075775;
+    }
+
+    .legend {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      max-width: min(360px, calc(100vw - 28px));
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      z-index: 5;
+    }
+
+    .version {
+      position: fixed;
+      right: 14px;
+      top: 14px;
+      z-index: 6;
+      padding: 7px 9px;
+      border: 1px solid rgba(20, 28, 36, 0.18);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.94);
+      color: #075775;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(20, 28, 36, 0.12);
+    }
+
+    @media (max-width: 720px) {
+      .hud {
+        left: 10px;
+        top: 10px;
+        padding: 10px;
+      }
+
+      .hud h1 {
+        font-size: 15px;
+      }
+
+      .hud p,
+      .legend {
+        display: none;
+      }
+
+      .control {
+        grid-template-columns: 72px 1fr 32px;
+        gap: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <section class="hud" aria-label="시뮬레이션 조절">
+    <h1>3단 순환식 수경재배 모델</h1>
+    <div class="control">
+      <label for="flow1">상단 밸브</label>
+      <input id="flow1" type="range" min="0" max="100" value="70">
+      <output id="flow1Out">70%</output>
+    </div>
+    <div class="control">
+      <label for="flow2">중단 밸브</label>
+      <input id="flow2" type="range" min="0" max="100" value="55">
+      <output id="flow2Out">55%</output>
+    </div>
+    <div class="control">
+      <label for="flow3">하단 밸브</label>
+      <input id="flow3" type="range" min="0" max="100" value="80">
+      <output id="flow3Out">80%</output>
+    </div>
+    <div class="control">
+      <label for="solutionA">야라 퍼티케어 222</label>
+      <input id="solutionA" type="range" min="0" max="180" value="70">
+      <output id="solutionAOut">70ml</output>
+    </div>
+    <div class="control">
+      <label for="solutionB">칼마그(CalMag)</label>
+      <input id="solutionB" type="range" min="0" max="180" value="70">
+      <output id="solutionBOut">70ml</output>
+    </div>
+    <div class="control">
+      <label for="solutionVolume">양액량</label>
+      <input id="solutionVolume" type="range" min="30" max="90" value="60">
+      <output id="solutionVolumeOut">60L</output>
+    </div>
+    <div class="control">
+      <label for="airTemp">온도</label>
+      <input id="airTemp" type="range" min="12" max="32" value="22">
+      <output id="airTempOut">22℃</output>
+    </div>
+    <div class="control">
+      <label for="humidity">습도</label>
+      <input id="humidity" type="range" min="35" max="90" value="65">
+      <output id="humidityOut">65%</output>
+    </div>
+    <div class="control">
+      <label for="ppfd">광량</label>
+      <input id="ppfd" type="range" min="80" max="360" value="220">
+      <output id="ppfdOut">220</output>
+    </div>
+    <div class="control">
+      <label for="diseasePressure">갈변/이병</label>
+      <input id="diseasePressure" type="range" min="0" max="100" value="12">
+      <output id="diseasePressureOut">12%</output>
+    </div>
+    <div class="control">
+      <label for="neglectDays">방치 기간</label>
+      <input id="neglectDays" type="range" min="0" max="14" value="2">
+      <output id="neglectDaysOut">2일</output>
+    </div>
+    <div class="sim-readout" aria-label="양액과 생육 시뮬레이션">
+      <div class="metric"><span>예상 EC</span><strong id="ecReadout">1.45</strong></div>
+      <div class="metric"><span>생육 점수</span><strong id="growthReadout">92%</strong></div>
+      <div class="metric"><span>상태</span><strong id="growthStatus">적정</strong></div>
+    </div>
+    <div class="sim-readout" aria-label="이병주와 병원균 전파 시뮬레이션">
+      <div class="metric"><span>이병/갈변 포기</span><strong id="diseaseCountReadout">0/42</strong></div>
+      <div class="metric"><span>양액 전파 위험</span><strong id="pathogenRiskReadout">낮음</strong></div>
+      <div class="metric"><span>대응</span><strong id="diseaseActionReadout">관찰</strong></div>
+    </div>
+    <div class="toggles">
+      <button id="toggleFlow" class="active" type="button">흐름</button>
+    </div>
+  </section>
+  <aside class="legend">Flow path: reservoir -> submerged pump -> supply pipe -> bed -> drain outlet -> corrugated drain hose -> reservoir</aside>
+  <div class="version">v2026-06-02 yara-ferticare-calmag</div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+
+    const CONFIG = {
+      rack: {
+        realWidthM: 1.2,
+        realDepthM: 0.6,
+        realHeightM: 2.27,
+        realLevelGapM: 0.5,
+        width: 7.8,
+        depth: 3.9,
+        height: 14.755,
+        levelY: [3.9, 7.15, 10.4],
+        metal: 0.055,
+        shelfThickness: 0.08
+      },
+      bed: { width: 7.8, depth: 3.35, height: 0.28, slope: 0.045, x: 0, z: -0.08 },
+      reservoir: { width: 4.55, depth: 3.25, height: 2.6, x: 0, y: 0.14, z: 0.95 },
+      nutrient: { waterLevel: 0, drainHeightRatio: 0.6, opacity: 0.56 },
+      pump: { flowRate: 95, particleBase: 92 },
+      plants: { rowCounts: [5, 4, 5], maxHeightM: 0.13, maxHeight: 0.845, rootLength: 0.22 },
+      pipe: { radius: 0.045, drainRadius: 0.035 },
+      nutrientSim: {
+        baseEc: 0.32,
+        volumeL: 60,
+        ferticare222Ml: 70,
+        calMagMl: 70,
+        airTempC: 22,
+        humidityPct: 65,
+        ppfd: 220
+      },
+      disease: {
+        pressure: 12,
+        neglectDays: 2,
+        pathogenParticleCount: 70
+      },
+      valveOpenings: [80, 55, 70],
+      flowDistribution: [80, 55, 70],
+      display: { labels: false, flow: true, roots: true }
+    };
+
+    const app = document.querySelector("#app");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xeef2f1);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(8.2, 8.4, 10.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    app.appendChild(renderer.domElement);
+
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = "fixed";
+    labelRenderer.domElement.style.inset = "0";
+    labelRenderer.domElement.style.pointerEvents = "none";
+    labelRenderer.domElement.style.display = "none";
+    app.appendChild(labelRenderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0.2, 7.1, 0.1);
+    controls.enableDamping = true;
+    controls.minDistance = 5.2;
+    controls.maxDistance = 26;
+
+    const materials = {
+      metal: new THREE.MeshStandardMaterial({ color: 0xf1eadf, roughness: 0.42, metalness: 0.28 }),
+      holeDark: new THREE.MeshStandardMaterial({ color: 0x6b665d, roughness: 0.65 }),
+      foam: new THREE.MeshStandardMaterial({ color: 0xf7f7f2, roughness: 0.72, transparent: true, opacity: 0.42, depthWrite: false }),
+      liner: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.02, transparent: true, opacity: 0.3, depthWrite: false }),
+      water: new THREE.MeshPhysicalMaterial({ color: 0x62c7df, transparent: true, opacity: 0.68, roughness: 0.08, transmission: 0.18 }),
+      reservoir: new THREE.MeshStandardMaterial({ color: 0xf2a51e, roughness: 0.46, transparent: true, opacity: 0.82 }),
+      pipe: new THREE.MeshStandardMaterial({ color: 0x595e65, roughness: 0.38, metalness: 0.08 }),
+      blueHose: new THREE.MeshStandardMaterial({ color: 0x0964d7, roughness: 0.32, metalness: 0.02 }),
+      hose: new THREE.MeshStandardMaterial({ color: 0xe8e8e6, roughness: 0.55 }),
+      hoseRib: new THREE.MeshStandardMaterial({ color: 0xd4d4d0, roughness: 0.6 }),
+      brass: new THREE.MeshStandardMaterial({ color: 0xb68a4a, roughness: 0.38, metalness: 0.35 }),
+      valveHandle: new THREE.MeshStandardMaterial({ color: 0xc72d26, roughness: 0.48 }),
+      shelf: new THREE.MeshStandardMaterial({ color: 0xc9c3b8, roughness: 0.62 }),
+      shelfEdge: new THREE.MeshStandardMaterial({ color: 0xeee7dc, roughness: 0.48, metalness: 0.18 }),
+      ledBody: new THREE.MeshStandardMaterial({ color: 0xd9d2c5, roughness: 0.45 }),
+      ledGlow: new THREE.MeshBasicMaterial({ color: 0xdfffff }),
+      wire: new THREE.MeshStandardMaterial({ color: 0x050607, roughness: 0.55 }),
+      wireWhite: new THREE.MeshStandardMaterial({ color: 0xf0f2ef, roughness: 0.5 }),
+      connector: new THREE.MeshStandardMaterial({ color: 0xd96c2c, roughness: 0.46 }),
+      leafA: new THREE.MeshStandardMaterial({ color: 0x2f7d42, roughness: 0.34, metalness: 0.02, side: THREE.DoubleSide }),
+      leafB: new THREE.MeshStandardMaterial({ color: 0x6caf48, roughness: 0.38, metalness: 0.02, side: THREE.DoubleSide }),
+      leafC: new THREE.MeshStandardMaterial({ color: 0x174b2b, roughness: 0.32, metalness: 0.02, side: THREE.DoubleSide }),
+      leafVein: new THREE.LineBasicMaterial({ color: 0xd3dfaa, transparent: true, opacity: 0.88 }),
+      leafDry: new THREE.MeshStandardMaterial({ color: 0xb59062, roughness: 0.78 }),
+      chloroticLeaf: new THREE.MeshStandardMaterial({ color: 0x9baa48, roughness: 0.62, side: THREE.DoubleSide }),
+      diseaseBrown: new THREE.MeshStandardMaterial({ color: 0x7a4c2e, roughness: 0.9, side: THREE.DoubleSide }),
+      diseaseDark: new THREE.MeshStandardMaterial({ color: 0x2a221d, roughness: 0.96 }),
+      pathogen: new THREE.MeshBasicMaterial({ color: 0x9a3324, transparent: true, opacity: 0.86, depthTest: false, depthWrite: false }),
+      waterDrop: new THREE.MeshPhysicalMaterial({ color: 0xe5fbff, transparent: true, opacity: 0.58, roughness: 0.02, transmission: 0.45 }),
+      rootHealthy: new THREE.Color(0xf4f0df),
+      rootCream: new THREE.Color(0xd7c28e),
+      rootBrown: new THREE.Color(0x7b5131),
+      rockwoolWet: new THREE.MeshStandardMaterial({ color: 0x6f705d, roughness: 0.92, metalness: 0.0 }),
+      rockwoolDark: new THREE.MeshStandardMaterial({ color: 0x3f3d34, roughness: 0.96 }),
+      brown: new THREE.MeshStandardMaterial({ color: 0x9b6840, roughness: 0.8 }),
+      flow: new THREE.MeshBasicMaterial({ color: 0x08a9dc, depthTest: false, depthWrite: false }),
+      internalFlow: new THREE.MeshBasicMaterial({ color: 0x05bfe8, transparent: true, opacity: 0.78 })
+    };
+
+    const rootGroup = new THREE.Group();
+    const flowGroup = new THREE.Group();
+    const labelGroup = new THREE.Group();
+    const waterPlanes = [];
+    const flowParticles = [];
+    const flowPaths = [];
+    const bedPositions = [];
+    const valveHandles = [];
+    const diseaseOverlays = [];
+    const rootSystems = [];
+    const pathogenParticles = [];
+    const pathogenGroup = new THREE.Group();
+    let pathogenRisk = 0;
+
+    scene.add(rootGroup, flowGroup, pathogenGroup, labelGroup);
+    CONFIG.nutrient.waterLevel = CONFIG.bed.height * CONFIG.nutrient.drainHeightRatio;
+
+    addLights();
+    addRoom();
+    buildRack();
+    buildReservoir();
+    buildBeds();
+    addPowerOutlet();
+    buildPipes();
+    buildFlowParticles();
+    buildPathogenParticles();
+    rootGroup.visible = CONFIG.display.roots;
+    bindControls();
+    updateNutrientSimulation();
+    updateDiseaseSimulation();
+    updateWaterLevel();
+
+    function addLights() {
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xb6c0bd, 1.0));
+      const key = new THREE.DirectionalLight(0xffffff, 1.7);
+      key.position.set(-3, 7, 5);
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      scene.add(key);
+    }
+
+    function addRoom() {
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(14, 12),
+        new THREE.MeshStandardMaterial({ color: 0xdfe5e2, roughness: 0.78 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -0.02;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const back = new THREE.Mesh(
+        new THREE.PlaneGeometry(14, 18),
+        new THREE.MeshStandardMaterial({ color: 0xe8ecea, roughness: 0.82 })
+      );
+      back.position.set(0, 8.2, -2.35);
+      scene.add(back);
+
+      const side = new THREE.Mesh(
+        new THREE.PlaneGeometry(12, 18),
+        new THREE.MeshStandardMaterial({ color: 0xe2e7e5, roughness: 0.82 })
+      );
+      side.rotation.y = Math.PI / 2;
+      side.position.set(-5.1, 8.2, 0.8);
+      scene.add(side);
+
+      const fan = new THREE.Group();
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.025, 12, 56), materials.hose);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 24), materials.pipe);
+      hub.rotation.x = Math.PI / 2;
+      fan.add(ring, hub);
+      for (let i = 0; i < 5; i++) {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.31, 0.018), materials.hose);
+        blade.position.y = 0.18;
+        blade.rotation.z = i * Math.PI * 2 / 5;
+        fan.add(blade);
+      }
+      fan.position.set(-3.45, 4.6, -2.31);
+      scene.add(fan);
+    }
+
+    function buildRack() {
+      const { width, depth, height, levelY, metal } = CONFIG.rack;
+      const xEdges = [-width / 2, width / 2];
+      const zEdges = [-depth / 2, depth / 2];
+      const topPanelY = levelY[2] + CONFIG.rack.realLevelGapM * (CONFIG.rack.width / CONFIG.rack.realWidthM);
+      const postExtra17cm = CONFIG.rack.width * (0.17 / CONFIG.rack.realWidthM);
+      const postHeight = topPanelY + postExtra17cm;
+
+      xEdges.forEach(x => zEdges.forEach(z => {
+        addBox("metal", [metal, postHeight, metal], [x, postHeight / 2, z], true);
+        for (let i = 0; i < 22; i++) {
+          const holeY = 0.35 + i * 0.31;
+          if (holeY > postHeight - 0.2) return;
+          const hole = addBox("holeDark", [metal * 1.08, 0.035, metal * 1.12], [x, holeY, z + (z > 0 ? -0.006 : 0.006)], false);
+          hole.material = materials.holeDark;
+        }
+      }));
+
+      [...levelY, topPanelY].forEach(y => {
+        zEdges.forEach(z => addBox("metal", [width + metal, metal, metal], [0, y, z], true));
+        xEdges.forEach(x => addBox("metal", [metal, metal, depth + metal], [x, y, 0], true));
+      });
+
+      [...levelY, topPanelY].forEach((y) => {
+        const board = addBox("brown", [width - 0.95, CONFIG.rack.shelfThickness, depth - 0.42], [-0.25, y + 0.08, 0], true);
+        board.receiveShadow = true;
+        addBox("shelfEdge", [width - 0.84, 0.055, 0.08], [-0.25, y + 0.02, -depth / 2 + 0.22], true);
+        addBox("shelfEdge", [width - 0.84, 0.055, 0.08], [-0.25, y + 0.02, depth / 2 - 0.22], true);
+      });
+
+      addLabel("금속 앵글 랙 1.2m x 0.6m x 2.5m", new THREE.Vector3(-4.05, 14.8, -1.6));
+      addLabel("층간 높이 0.5m", new THREE.Vector3(-3.0, 7.0, 1.7));
+      addLabel("나무 상판 위에 베드, 상판 아래 LED", new THREE.Vector3(-3.0, 7.98, 1.65));
+    }
+
+    function buildReservoir() {
+      const r = CONFIG.reservoir;
+      const tank = new THREE.Mesh(new THREE.BoxGeometry(r.width, r.height, r.depth), materials.reservoir);
+      tank.position.set(r.x, r.y + r.height / 2, r.z);
+      tank.castShadow = true;
+      tank.receiveShadow = true;
+      scene.add(tank);
+
+      const inner = new THREE.Mesh(new THREE.BoxGeometry(r.width * 0.86, 0.035, r.depth * 0.8), materials.water);
+      inner.position.set(r.x, r.y + r.height + 0.022, r.z);
+      scene.add(inner);
+
+      const pump = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.48, 0.56), materials.pipe);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.36, 24), materials.pipe);
+      cap.rotation.z = Math.PI / 2;
+      cap.position.set(-0.5, 0.06, 0);
+      pump.add(body, cap);
+      pump.position.set(r.x - 1.95, r.y + 0.25, r.z - 0.05);
+      scene.add(pump);
+
+      addLabel("대형 플라스틱 양액통", new THREE.Vector3(r.x + 0.35, r.y + r.height + 0.35, r.z + 0.82));
+      addLabel("양액통 바닥의 수중펌프", new THREE.Vector3(r.x - 2.25, r.y + 0.48, r.z - 0.35));
+    }
+
+    function buildBeds() {
+      CONFIG.rack.levelY.forEach((y, i) => {
+        const level = 2 - i;
+        const levelName = ["하단", "중단", "상단"][i];
+        const bedY = y + 0.23;
+        bedPositions.push(new THREE.Vector3(CONFIG.bed.x, bedY, CONFIG.bed.z));
+        const bed = new THREE.Group();
+        bed.rotation.z = -CONFIG.bed.slope;
+        bed.position.set(CONFIG.bed.x, bedY, CONFIG.bed.z);
+
+        const foamBase = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.bed.width, 0.12, CONFIG.bed.depth), materials.foam);
+        foamBase.position.y = -0.08;
+        foamBase.castShadow = true;
+        foamBase.receiveShadow = true;
+        bed.add(foamBase);
+
+        const linerFloor = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.bed.width * 0.98, 0.035, CONFIG.bed.depth * 0.95), materials.liner);
+        linerFloor.position.y = 0.02;
+        bed.add(linerFloor);
+
+        const wallH = CONFIG.bed.height;
+        const wallT = 0.055;
+        [
+          [CONFIG.bed.width, wallH, wallT, 0, wallH / 2, -CONFIG.bed.depth / 2],
+          [CONFIG.bed.width, wallH, wallT, 0, wallH / 2, CONFIG.bed.depth / 2],
+          [wallT, wallH, CONFIG.bed.depth, -CONFIG.bed.width / 2, wallH / 2, 0],
+          [wallT, wallH, CONFIG.bed.depth, CONFIG.bed.width / 2, wallH / 2, 0]
+        ].forEach(([w, h, d, x2, y2, z2]) => {
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), materials.liner);
+          wall.position.set(x2, y2, z2);
+          wall.castShadow = true;
+          wall.receiveShadow = true;
+          bed.add(wall);
+        });
+
+        const water = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.bed.width * 0.9, 0.035, CONFIG.bed.depth * 0.77), materials.water);
+        water.position.y = 0.01 + CONFIG.nutrient.waterLevel;
+        water.userData.baseY = 0.01;
+        bed.add(water);
+        waterPlanes.push(water);
+        addInternalBedFlow(bed);
+
+        const foamLid = new THREE.Mesh(new THREE.BoxGeometry(CONFIG.bed.width * 0.96, 0.085, CONFIG.bed.depth * 0.9), materials.foam);
+        foamLid.position.y = wallH + 0.055;
+        foamLid.castShadow = true;
+        foamLid.receiveShadow = true;
+        bed.add(foamLid);
+
+        addSupplyInletHole(
+          bed,
+          -CONFIG.bed.width / 2 + CONFIG.rack.width * (0.07 / CONFIG.rack.realWidthM),
+          CONFIG.bed.depth / 2 - 0.38
+        );
+
+        addDrainStandpipe(bed, CONFIG.bed.width / 2 - 0.16, 0, CONFIG.bed.height * CONFIG.nutrient.drainHeightRatio);
+        addPlants(bed, level);
+        scene.add(bed);
+
+        addLabel(`${levelName} 비닐 라이닝 베드`, new THREE.Vector3(CONFIG.bed.x - 2.55, bedY + 0.5, CONFIG.bed.z - 0.9));
+      });
+
+      const topPanelY = CONFIG.rack.levelY[2] + CONFIG.rack.realLevelGapM * (CONFIG.rack.width / CONFIG.rack.realWidthM);
+      [CONFIG.rack.levelY[1] - 0.18, CONFIG.rack.levelY[2] - 0.18, topPanelY - 0.18].forEach((ledY, i) => {
+        addLedBars(CONFIG.bed.x, ledY, CONFIG.bed.z, i);
+      });
+
+      addLabel("구멍 뚫린 스티로폼 판", new THREE.Vector3(-1.2, 12.95, 1.4));
+      addLabel("암면배지에 정식한 상추", new THREE.Vector3(0.15, 13.25, 1.45));
+      addLabel("뿌리는 반투명 베드 내부 양액에 접촉", new THREE.Vector3(0.85, 7.65, 1.35));
+      addLabel("베드 바닥 구멍 + 짧은 배수구 파이프", new THREE.Vector3(3.25, 12.85, 0.32));
+      addLabel("층별 4개 LED 조명과 전선", new THREE.Vector3(-2.7, 11.55, -0.25));
+    }
+
+    function addDrainStandpipe(parent, x, z, h) {
+      const floorY = 0.035;
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, h, 24), materials.hose);
+      pipe.position.set(x, floorY + h / 2, z);
+      pipe.userData.fixedHeight = "bed height x 0.6";
+      parent.add(pipe);
+
+      const bottomHole = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.014, 32), materials.holeDark);
+      bottomHole.position.set(x, floorY + 0.006, z);
+      parent.add(bottomHole);
+
+      const lip = new THREE.Mesh(new THREE.TorusGeometry(0.073, 0.014, 12, 32), materials.pipe);
+      lip.rotation.x = Math.PI / 2;
+      lip.position.set(x, floorY + h, z);
+      parent.add(lip);
+
+      const underside = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.072, 0.22, 24), materials.hose);
+      underside.position.set(x, -0.08, z);
+      parent.add(underside);
+
+      const socket = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.022, 12, 32), materials.pipe);
+      socket.rotation.x = Math.PI / 2;
+      socket.position.set(x, -0.19, z);
+      parent.add(socket);
+    }
+
+    function addInternalBedFlow(parent) {
+      const startX = -CONFIG.bed.width / 2 + CONFIG.rack.width * (0.07 / CONFIG.rack.realWidthM);
+      const startZ = CONFIG.bed.depth / 2 - 0.38;
+      const endX = CONFIG.bed.width / 2 - 0.16;
+      const endZ = 0;
+      const y = 0.01 + CONFIG.nutrient.waterLevel + 0.035;
+
+      for (let i = 0; i < 3; i++) {
+        const offset = (i - 1) * 0.18;
+        const curve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(startX, y, startZ + offset),
+          new THREE.Vector3(-0.8, y + 0.015, 0.32 + offset * 0.4),
+          new THREE.Vector3(1.35, y + 0.01, 0.08 + offset * 0.35),
+          new THREE.Vector3(endX, y, endZ + offset * 0.25)
+        ]);
+        const flow = new THREE.Mesh(new THREE.TubeGeometry(curve, 36, 0.014, 8, false), materials.internalFlow);
+        parent.add(flow);
+      }
+    }
+
+    function addSupplyInletHole(parent, x, z) {
+      const topY = CONFIG.bed.height + 0.12;
+      const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.016, 32), materials.holeDark);
+      hole.position.set(x, topY, z);
+      parent.add(hole);
+
+      const mark = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.012, 10, 32), materials.valveHandle);
+      mark.rotation.x = Math.PI / 2;
+      mark.position.set(x, topY + 0.012, z);
+      parent.add(mark);
+
+    }
+
+    function addElbowMarker(position, radius) {
+      const marker = new THREE.Mesh(new THREE.SphereGeometry(radius, 18, 12), materials.pipe);
+      marker.position.copy(position);
+      marker.scale.set(1, 0.85, 1);
+      marker.castShadow = true;
+      scene.add(marker);
+      return marker;
+    }
+
+    function addCouplingRing(position, direction, radius) {
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.065, 24), materials.pipe);
+      ring.position.copy(position);
+      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+      ring.castShadow = true;
+      scene.add(ring);
+      return ring;
+    }
+
+    function addValveAssembly(position, levelIndex, direction = new THREE.Vector3(1, 0, 0)) {
+      const group = new THREE.Group();
+      group.position.copy(position);
+      group.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), direction.clone().normalize());
+
+      const brass = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.34, 24), materials.brass);
+      brass.rotation.z = Math.PI / 2;
+      brass.castShadow = true;
+      group.add(brass);
+
+      const leftNut = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.055, 24), materials.pipe);
+      leftNut.rotation.z = Math.PI / 2;
+      leftNut.position.x = -0.2;
+      group.add(leftNut);
+
+      const rightNut = leftNut.clone();
+      rightNut.position.x = 0.2;
+      group.add(rightNut);
+
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.16, 16), materials.brass);
+      stem.position.set(0, -0.11, 0);
+      group.add(stem);
+
+      const handlePivot = new THREE.Group();
+      handlePivot.position.set(0, -0.2, 0);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.055, 0.075), materials.valveHandle);
+      handle.position.x = 0.11;
+      handle.castShadow = true;
+      handlePivot.add(handle);
+      group.add(handlePivot);
+
+      scene.add(group);
+      valveHandles[levelIndex] = handlePivot;
+      updateValveHandle(levelIndex);
+      return group;
+    }
+
+    function updateValveHandle(levelIndex) {
+      const handle = valveHandles[levelIndex];
+      if (!handle) return;
+      const opening = CONFIG.valveOpenings[levelIndex] / 100;
+      handle.rotation.z = THREE.MathUtils.lerp(Math.PI / 2, 0, opening);
+      handle.scale.x = THREE.MathUtils.lerp(0.78, 1.08, opening);
+    }
+
+    function addPlants(parent, level) {
+      const rowZ = [-CONFIG.bed.depth * 0.27, 0, CONFIG.bed.depth * 0.27];
+      const minX = -CONFIG.bed.width * 0.35;
+      const maxX = CONFIG.bed.width * 0.35;
+      CONFIG.plants.rowCounts.forEach((count, row) => {
+        const spacing = (maxX - minX) / 4;
+        const startX = row === 1 ? minX + spacing * 0.5 : minX;
+        for (let c = 0; c < count; c++) {
+          const seed = level * 100 + row * 17 + c * 5;
+          const x = startX + c * spacing + Math.sin(seed) * 0.035;
+          const z = rowZ[row] + Math.cos(seed * 1.7) * 0.035;
+          const scale = 0.9 + pseudoRandom(seed) * 0.22;
+          const plant = createRealisticLettuce(seed, scale);
+          plant.position.set(x, CONFIG.bed.height + 0.12, z);
+          plant.rotation.y = pseudoRandom(seed + 8) * Math.PI * 2;
+
+          const rootLines = makeRoots(x, z, level, seed);
+          rootGroup.add(rootLines);
+          rootSystems.push(rootLines);
+          parent.add(plant);
+        }
+      });
+    }
+
+    function createRealisticLettuce(seed, scale) {
+      const plant = new THREE.Group();
+      const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.012, 32), materials.holeDark);
+      hole.position.y = -0.045;
+      plant.add(hole);
+
+      const rockwool = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), materials.rockwoolWet);
+      rockwool.position.y = -0.005;
+      plant.add(rockwool);
+      addWetRockwoolTexture(plant, seed);
+
+      const outerCount = 11;
+      for (let k = 0; k < outerCount; k++) {
+        const a = (k / outerCount) * Math.PI * 2 + pseudoRandom(seed + k) * 0.16;
+        const leafScale = scale * (0.92 + pseudoRandom(seed + k * 3) * 0.18);
+        addLeaf(plant, seed + k, {
+          angle: a,
+          radius: 0.17 + pseudoRandom(seed + k + 2) * 0.06,
+          y: 0.08 + k * 0.002,
+          width: 0.42 * leafScale,
+          length: 0.5 * leafScale,
+          pitch: 0.16,
+          cup: 0.85,
+          roll: 0.12
+        });
+      }
+
+      for (let k = 0; k < 13; k++) {
+        const a = (k / 13) * Math.PI * 2 + 0.23;
+        const leafScale = scale * (0.62 + pseudoRandom(seed + 30 + k) * 0.14);
+        addLeaf(plant, seed + 30 + k, {
+          angle: a,
+          radius: 0.08,
+          y: 0.18 + k * 0.007,
+          width: 0.29 * leafScale,
+          length: 0.4 * leafScale,
+          pitch: -0.22,
+          cup: 1.18,
+          roll: 0.3
+        });
+      }
+
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 9) * Math.PI * 2 + 0.52;
+        const leafScale = scale * (0.38 + pseudoRandom(seed + 60 + k) * 0.08);
+        addLeaf(plant, seed + 60 + k, {
+          angle: a,
+          radius: 0.018,
+          y: 0.35 + k * 0.009,
+          width: 0.18 * leafScale,
+          length: 0.3 * leafScale,
+          pitch: -0.62,
+          cup: 1.45,
+          roll: 0.55
+        });
+      }
+
+      const heart = new THREE.Group();
+      for (let k = 0; k < 5; k++) {
+        addLeaf(heart, seed + 90 + k, {
+          angle: (k / 5) * Math.PI * 2,
+          radius: 0.004,
+          y: 0.43 + k * 0.018,
+          width: 0.08 * scale,
+          length: 0.18 * scale,
+          pitch: -0.9,
+          cup: 1.8,
+          roll: 0.8
+        });
+      }
+      plant.add(heart);
+
+      if (seed % 4 === 0) {
+        const dry = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), materials.leafDry);
+        dry.scale.set(1.2, 0.25, 0.7);
+        dry.position.set(-0.04, 0.22, 0.16);
+        plant.add(dry);
+      }
+
+      const disease = createDiseaseOverlay(seed, scale);
+      disease.visible = false;
+      disease.userData.rank = pseudoRandom(seed + 137);
+      plant.add(disease);
+      diseaseOverlays.push(disease);
+
+      plant.scale.y = Math.min(1, CONFIG.plants.maxHeight / 0.82);
+      return plant;
+    }
+
+    function addWetRockwoolTexture(parent, seed) {
+      for (let i = 0; i < 9; i++) {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.008 + pseudoRandom(seed + i) * 0.004, 6, 4), materials.rockwoolDark);
+        dot.scale.y = 0.25;
+        dot.position.set(
+          -0.07 + pseudoRandom(seed + i * 2) * 0.14,
+          0.038,
+          -0.07 + pseudoRandom(seed + i * 3) * 0.14
+        );
+        parent.add(dot);
+      }
+    }
+
+    function createDiseaseOverlay(seed, scale) {
+      const group = new THREE.Group();
+
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2 + pseudoRandom(seed + k) * 0.2;
+        const mat = k % 2 ? materials.diseaseBrown : materials.chloroticLeaf;
+        const leaf = new THREE.Mesh(makeButterheadLeafGeometry(seed + 200 + k, 0.8, 0.75), mat);
+        leaf.scale.set(0.2 * scale, 1, 0.34 * scale);
+        leaf.position.set(Math.cos(a) * 0.08, 0.16 + k * 0.004, Math.sin(a) * 0.08);
+        leaf.rotation.set(0.18 + pseudoRandom(seed + k) * 0.25, -a + Math.PI / 2, Math.sin(seed + k) * 0.35);
+        leaf.castShadow = true;
+        group.add(leaf);
+      }
+
+      const rotCore = new THREE.Mesh(new THREE.SphereGeometry(0.13, 18, 12), materials.diseaseBrown);
+      rotCore.scale.set(0.9 * scale, 0.55 * scale, 0.72 * scale);
+      rotCore.position.set(-0.02, 0.37, 0.01);
+      rotCore.castShadow = true;
+      group.add(rotCore);
+
+      const darkMold = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 10), materials.diseaseDark);
+      darkMold.scale.set(1.1 * scale, 0.42 * scale, 0.9 * scale);
+      darkMold.position.set(-0.03, 0.43, 0.02);
+      darkMold.castShadow = true;
+      group.add(darkMold);
+
+      for (let i = 0; i < 16; i++) {
+        const spot = new THREE.Mesh(new THREE.SphereGeometry(0.015 + pseudoRandom(seed + i) * 0.01, 8, 6), materials.diseaseDark);
+        spot.position.set(
+          -0.07 + pseudoRandom(seed + i * 2) * 0.14,
+          0.43 + pseudoRandom(seed + i * 3) * 0.04,
+          -0.05 + pseudoRandom(seed + i * 4) * 0.1
+        );
+        spot.scale.y = 0.28;
+        group.add(spot);
+      }
+
+      return group;
+    }
+
+    function addLeaf(parent, seed, opts) {
+      const { angle, radius, y, width, length, pitch, cup, roll } = opts;
+      const geo = makeButterheadLeafGeometry(seed, cup, roll);
+      const material = [materials.leafA, materials.leafB, materials.leafC][seed % 3];
+      const group = new THREE.Group();
+      const leaf = new THREE.Mesh(geo, material);
+      leaf.scale.set(width, 1, length);
+      leaf.rotation.x = pitch;
+      leaf.rotation.z = (pseudoRandom(seed + 1) - 0.5) * 0.22;
+      leaf.castShadow = true;
+      leaf.receiveShadow = true;
+      group.add(leaf);
+
+      const mainVein = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0.04, length * 0.02),
+          new THREE.Vector3(0, 0.045, length * 0.34),
+          new THREE.Vector3(0, 0.04, length * 0.86)
+        ]),
+        materials.leafVein
+      );
+      mainVein.rotation.x = pitch;
+      group.add(mainVein);
+
+      for (let i = 0; i < 4; i++) {
+        const side = i % 2 ? -1 : 1;
+        const z0 = length * (0.18 + i * 0.11);
+        const vein = new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0.044, z0),
+            new THREE.Vector3(side * width * (0.18 + i * 0.05), 0.041, z0 + length * 0.13)
+          ]),
+          materials.leafVein
+        );
+        vein.rotation.x = pitch;
+        group.add(vein);
+      }
+
+      if (seed % 5 === 0) {
+        const drop = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), materials.waterDrop);
+        drop.scale.set(1.2, 0.38, 0.9);
+        drop.position.set(width * 0.18, 0.055, length * 0.48);
+        drop.rotation.x = pitch;
+        group.add(drop);
+      }
+
+      group.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+      group.rotation.y = -angle + Math.PI / 2;
+      group.rotation.z = Math.sin(seed) * 0.1;
+      parent.add(group);
+    }
+
+    function makeButterheadLeafGeometry(seed, cup = 1, roll = 0.2) {
+      const rows = 18;
+      const cols = 12;
+      const positions = [];
+      const indices = [];
+      for (let r = 0; r <= rows; r++) {
+        const v = r / rows;
+        const broad = Math.pow(Math.sin(Math.PI * v), 0.38) * (1.05 - v * 0.18);
+        for (let c = 0; c <= cols; c++) {
+          const u = (c / cols) * 2 - 1;
+          const edgeWave = Math.sin((v * 10 + seed) + u * 2.4) * 0.035;
+          const x = u * broad * (0.5 + edgeWave);
+          const centerFold = -Math.exp(-Math.abs(u) * 4.2) * 0.035 * cup;
+          const edgeCurl = Math.pow(Math.abs(u), 2.4) * 0.12 * cup;
+          const lengthCurl = Math.pow(v, 1.7) * 0.08 * roll;
+          const blister = Math.sin((u * 8.5 + seed) * 1.2) * Math.sin((v * 14.0 - seed) * 0.7) * 0.018;
+          const y = centerFold + edgeCurl + lengthCurl + blister;
+          const z = v;
+          positions.push(x, y, z);
+        }
+      }
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const a = r * (cols + 1) + c;
+          const b = a + 1;
+          const d = (r + 1) * (cols + 1) + c;
+          const e = d + 1;
+          indices.push(a, d, b, b, d, e);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    function pseudoRandom(seed) {
+      return Math.abs(Math.sin(seed * 12.9898) * 43758.5453) % 1;
+    }
+
+    function makeRoots(localX, localZ, level, seed) {
+      const group = new THREE.Group();
+      group.userData.rank = pseudoRandom(seed + 137);
+      group.userData.baseColor = materials.rootHealthy.clone();
+      const bed = bedPositions[2 - level] || new THREE.Vector3();
+      const base = new THREE.Vector3(localX + bed.x, bed.y + CONFIG.bed.height + 0.1, localZ + bed.z);
+      for (let i = 0; i < 5; i++) {
+        const points = [];
+        const drift = (i - 2) * 0.025;
+        points.push(base.clone());
+        points.push(base.clone().add(new THREE.Vector3(drift, -0.08, Math.sin(i) * 0.035)));
+        points.push(base.clone().add(new THREE.Vector3(drift * 1.4, -0.18, Math.cos(i) * 0.045)));
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        const rootMaterial = new THREE.LineBasicMaterial({
+          color: materials.rootHealthy.clone(),
+          transparent: true,
+          opacity: 0.96
+        });
+        group.add(new THREE.Line(geo, rootMaterial));
+      }
+      return group;
+    }
+
+    function addLedBars(x, y, z, index) {
+      const offsets = [-1.18, -0.4, 0.4, 1.18];
+      const leftEnds = [];
+      offsets.forEach((oz, ledIndex) => {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(5.25, 0.055, 0.055), materials.ledBody);
+        body.position.set(x - 0.05, y, z + oz);
+        body.castShadow = true;
+        scene.add(body);
+        const glow = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.018, 0.035), materials.ledGlow);
+        glow.position.set(x - 0.05, y - 0.04, z + oz);
+        scene.add(glow);
+
+        for (let i = 0; i < 18; i++) {
+          const chip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.012, 0.038), new THREE.MeshBasicMaterial({ color: i % 4 === 0 ? 0xff677c : 0xf8ffff }));
+          chip.position.set(x - 2.35 + i * 0.27, y - 0.055, z + oz);
+          scene.add(chip);
+        }
+
+        const leftPoint = new THREE.Vector3(x - 2.76, y, z + oz);
+        leftEnds.push(leftPoint);
+        addLedEndConnector(leftPoint, true);
+        addLedPlainCap(new THREE.Vector3(x + 2.66, y, z + oz));
+      });
+      addLedLeftChain(leftEnds, index);
+    }
+
+    function addLedEndConnector(position, leftSide) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.16, 20), materials.wireWhite);
+      cap.rotation.z = Math.PI / 2;
+      cap.position.copy(position);
+      cap.castShadow = true;
+      scene.add(cap);
+
+      const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 18), materials.ledBody);
+      socket.rotation.z = Math.PI / 2;
+      socket.position.copy(position).add(new THREE.Vector3(leftSide ? -0.12 : 0.12, 0, 0));
+      scene.add(socket);
+    }
+
+    function addLedPlainCap(position) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.11, 18), materials.wireWhite);
+      cap.rotation.z = Math.PI / 2;
+      cap.position.copy(position);
+      cap.castShadow = true;
+      scene.add(cap);
+    }
+
+    function addLedLeftChain(points, levelIndex) {
+      const y = points[0].y;
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i].clone().add(new THREE.Vector3(-0.12, 0.01, 0));
+        const b = points[i + 1].clone().add(new THREE.Vector3(-0.12, 0.01, 0));
+        addCableCurve([
+          a,
+          new THREE.Vector3(a.x - 0.25, y - 0.16, (a.z + b.z) / 2),
+          b
+        ], 0.017, materials.wire);
+        addWireClip(new THREE.Vector3(a.x - 0.18, y - 0.1, (a.z + b.z) / 2));
+      }
+
+      const dropStart = points[0].clone().add(new THREE.Vector3(-0.14, 0.01, 0));
+      const dropX = -4.05;
+      const dropZ = points[0].z - 0.12;
+      const dropEndY = levelIndex === 0 ? 0.75 : y - 2.65;
+      addCableCurve([
+        dropStart,
+        new THREE.Vector3(dropX, y - 0.35, dropZ),
+        new THREE.Vector3(dropX, Math.max(dropEndY, 0.8), dropZ)
+      ], 0.02, materials.wire);
+
+      if (levelIndex === 0) {
+        addCableCurve([
+          new THREE.Vector3(dropX, 0.75, dropZ),
+          new THREE.Vector3(-4.45, 0.56, 0.9),
+          new THREE.Vector3(-4.75, 0.72, 0.2)
+        ], 0.021, materials.wire);
+      }
+    }
+
+    function addWireClip(position) {
+      const connector = new THREE.Group();
+      const block = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.11), materials.wireWhite);
+      const clip = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.028, 0.12), materials.connector);
+      clip.position.y = -0.052;
+      connector.add(block, clip);
+      connector.position.copy(position);
+      connector.rotation.y = -0.25;
+      scene.add(connector);
+    }
+
+    function addPowerOutlet() {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.05), materials.wireWhite);
+      body.position.set(-4.85, 0.72, 0.16);
+      body.rotation.y = Math.PI / 2;
+      body.castShadow = true;
+      scene.add(body);
+      [-0.06, 0.06].forEach(offset => {
+        const hole = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.01), materials.holeDark);
+        hole.position.set(-4.88, 0.72 + offset, 0.16);
+        hole.rotation.y = Math.PI / 2;
+        scene.add(hole);
+      });
+      addLabel("LED 전선이 모여 콘센트에 연결", new THREE.Vector3(-4.5, 1.1, 0.35));
+    }
+
+    function buildPipes() {
+      const r = CONFIG.reservoir;
+      const supplyX = -CONFIG.rack.width / 2 - 0.02;
+      const supplyZ = CONFIG.rack.depth / 2 + CONFIG.pipe.radius * 2.2;
+      const inletX = CONFIG.bed.x - CONFIG.bed.width / 2 + CONFIG.rack.width * (0.07 / CONFIG.rack.realWidthM);
+      const inletZ = CONFIG.bed.z + CONFIG.bed.depth / 2 - 0.38;
+      const valveOffset5cm = CONFIG.rack.width * (0.05 / CONFIG.rack.realWidthM);
+      const supplyTopY = CONFIG.rack.levelY[2] + 0.38 + 0.92 + valveOffset5cm;
+      const pumpOutlet = new THREE.Vector3(r.x - 1.95, r.y + 0.28, r.z - 0.05);
+      const tankOpening = new THREE.Vector3(r.x - 2.35, r.y + r.height + 0.22, r.z + r.depth * 0.32);
+      const hoseExit = new THREE.Vector3(r.x - 2.55, r.y + r.height + 0.5, supplyZ);
+      const supplyBase = new THREE.Vector3(supplyX, 1.16, supplyZ);
+      addSmoothHoseCurve([pumpOutlet, new THREE.Vector3(r.x - 2.05, r.y + 0.9, r.z + 0.25), tankOpening, hoseExit, supplyBase], CONFIG.pipe.radius * 1.35, materials.blueHose);
+      addPipe(new THREE.Vector3(supplyX, 1.28, supplyZ), new THREE.Vector3(supplyX, supplyTopY, supplyZ), CONFIG.pipe.radius, materials.pipe);
+
+      const drainStarts = [];
+      CONFIG.rack.levelY.forEach((y, i) => {
+        const bedY = y + 0.38;
+        const branchY = bedY + 0.92 + valveOffset5cm;
+        const insertPoint = new THREE.Vector3(inletX, bedY + 0.32, inletZ);
+        const branchEnd = new THREE.Vector3(inletX - 0.34, branchY, supplyZ);
+        const valveAxis = new THREE.Vector3().subVectors(insertPoint, branchEnd).normalize();
+        const valveCenter = branchEnd.clone().lerp(insertPoint, 0.56);
+        const valveIn = valveCenter.clone().addScaledVector(valveAxis, -0.25);
+        const valveOut = valveCenter.clone().addScaledVector(valveAxis, 0.25);
+        const branchStart = new THREE.Vector3(supplyX, branchY, supplyZ);
+        addPipe(new THREE.Vector3(supplyX, bedY, supplyZ), branchStart, CONFIG.pipe.radius, materials.pipe);
+        addElbowMarker(branchStart, CONFIG.pipe.radius * 1.9);
+        addPipe(branchStart, branchEnd, CONFIG.pipe.radius, materials.pipe);
+        addElbowMarker(branchEnd, CONFIG.pipe.radius * 1.55);
+        addPipe(branchEnd, valveIn, CONFIG.pipe.radius, materials.pipe);
+        addValveAssembly(valveCenter, i, valveAxis);
+        addCouplingRing(valveIn, valveAxis, CONFIG.pipe.radius * 1.55);
+        addCouplingRing(valveOut, valveAxis, CONFIG.pipe.radius * 1.55);
+        addPipe(valveOut, insertPoint, CONFIG.pipe.radius, materials.pipe);
+
+        drainStarts[i] = new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, bedY - 0.27, CONFIG.bed.z);
+      });
+
+      const outsideX = 4.18;
+      const outsideZ = 0.35;
+      const yJoin = new THREE.Vector3(outsideX, 7.0, outsideZ);
+      const drainOut = new THREE.Vector3(r.x + 0.72, 2.5, r.z + 0.18);
+
+      addCorrugatedHoseCurve([
+        drainStarts[2],
+        new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, drainStarts[2].y - 0.18, CONFIG.bed.z),
+        new THREE.Vector3(3.86, drainStarts[2].y - 0.45, 0.06),
+        new THREE.Vector3(outsideX, drainStarts[2].y - 0.7, outsideZ),
+        yJoin
+      ], CONFIG.pipe.drainRadius * 1.45);
+
+      addCorrugatedHoseCurve([
+        drainStarts[1],
+        new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, drainStarts[1].y - 0.18, CONFIG.bed.z),
+        new THREE.Vector3(3.86, drainStarts[1].y - 0.25, 0.06),
+        new THREE.Vector3(outsideX, drainStarts[1].y - 0.1, outsideZ),
+        yJoin
+      ], CONFIG.pipe.drainRadius * 1.45);
+
+      addCorrugatedHoseCurve([
+        yJoin,
+        new THREE.Vector3(outsideX, 5.8, outsideZ),
+        new THREE.Vector3(3.72, 3.3, 0.62),
+        drainOut
+      ], CONFIG.pipe.drainRadius * 1.45);
+
+      addCorrugatedHoseCurve([
+        drainStarts[0],
+        new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, drainStarts[0].y - 0.18, CONFIG.bed.z),
+        new THREE.Vector3(3.86, drainStarts[0].y - 0.45, 0.06),
+        new THREE.Vector3(3.58, 3.0, 0.55),
+        new THREE.Vector3(r.x + 0.55, 2.45, r.z + 0.18)
+      ], CONFIG.pipe.drainRadius * 1.35);
+
+      addLabel("앞쪽 왼편 공급관", new THREE.Vector3(-4.45, 12.6, 1.8));
+      addLabel("층별 유량 조절 밸브", new THREE.Vector3(inletX - 0.7, 8.95, inletZ + 0.75));
+      addLabel("왼쪽 끝에서 7cm 공급 구멍: 위에서 대각 삽입", new THREE.Vector3(inletX + 0.08, 12.95, inletZ + 0.35));
+      addLabel("선반 밖 오른쪽 Y자 주름 배액관", new THREE.Vector3(4.35, 8.0, 0.9));
+      addLabel("1층 하부 직배수", new THREE.Vector3(3.55, 3.5, 0.72));
+    }
+
+    function buildFlowParticles() {
+      const res = CONFIG.reservoir;
+      const supplyX = -CONFIG.rack.width / 2 - 0.02;
+      const supplyZ = CONFIG.rack.depth / 2 + CONFIG.pipe.radius * 2.2;
+      const inletX = CONFIG.bed.x - CONFIG.bed.width / 2 + CONFIG.rack.width * (0.07 / CONFIG.rack.realWidthM);
+      const inletZ = CONFIG.bed.z + CONFIG.bed.depth / 2 - 0.38;
+      const valveOffset5cm = CONFIG.rack.width * (0.05 / CONFIG.rack.realWidthM);
+      const supplyTopY = CONFIG.rack.levelY[2] + 0.38 + 0.92 + valveOffset5cm;
+
+      const pumpOutlet = new THREE.Vector3(res.x - 1.95, res.y + 0.28, res.z - 0.05);
+      const tankOpening = new THREE.Vector3(res.x - 2.35, res.y + res.height + 0.22, res.z + res.depth * 0.32);
+      const hoseExit = new THREE.Vector3(res.x - 2.55, res.y + res.height + 0.5, supplyZ);
+      const supplyBase = new THREE.Vector3(supplyX, 1.16, supplyZ);
+      addPathCurve(makeCurvePath([
+        new THREE.CatmullRomCurve3([
+          pumpOutlet,
+          new THREE.Vector3(res.x - 2.05, res.y + 0.9, res.z + 0.25),
+          tankOpening,
+          hoseExit,
+          supplyBase
+        ]),
+        new THREE.LineCurve3(supplyBase, new THREE.Vector3(supplyX, supplyTopY, supplyZ))
+      ]), "main", 1);
+
+      const drainStarts = [];
+      CONFIG.rack.levelY.forEach((y, i) => {
+        const bedY = y + 0.38;
+        const branchY = bedY + 0.92 + valveOffset5cm;
+        const insertPoint = new THREE.Vector3(inletX, bedY + 0.32, inletZ);
+        const branchEnd = new THREE.Vector3(inletX - 0.34, branchY, supplyZ);
+        const valveAxis = new THREE.Vector3().subVectors(insertPoint, branchEnd).normalize();
+        const valveCenter = branchEnd.clone().lerp(insertPoint, 0.56);
+        const valveIn = valveCenter.clone().addScaledVector(valveAxis, -0.25);
+        const valveOut = valveCenter.clone().addScaledVector(valveAxis, 0.25);
+        drainStarts[i] = new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, bedY - 0.27, CONFIG.bed.z);
+        addPathCurve(makeCurvePath([
+          new THREE.LineCurve3(new THREE.Vector3(supplyX, bedY, supplyZ), new THREE.Vector3(supplyX, branchY, supplyZ)),
+          new THREE.LineCurve3(new THREE.Vector3(supplyX, branchY, supplyZ), branchEnd),
+          new THREE.LineCurve3(branchEnd, valveIn),
+          new THREE.LineCurve3(valveIn, valveOut),
+          new THREE.LineCurve3(valveOut, insertPoint)
+        ]), `bed${i}`, i);
+      });
+
+      const outsideX = 4.18;
+      const outsideZ = 0.35;
+      const yJoin = new THREE.Vector3(outsideX, 7.0, outsideZ);
+      const drainOut = new THREE.Vector3(res.x + 0.72, 2.5, res.z + 0.18);
+      const sharedDrain = new THREE.CatmullRomCurve3([
+        yJoin,
+        new THREE.Vector3(outsideX, 5.8, outsideZ),
+        new THREE.Vector3(3.72, 3.3, 0.62),
+        drainOut
+      ]);
+
+      addPathCurve(makeCurvePath([
+        new THREE.CatmullRomCurve3([
+          drainStarts[2],
+          new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, drainStarts[2].y - 0.18, CONFIG.bed.z),
+          new THREE.Vector3(3.86, drainStarts[2].y - 0.45, 0.06),
+          new THREE.Vector3(outsideX, drainStarts[2].y - 0.7, outsideZ),
+          yJoin
+        ]),
+        sharedDrain
+      ]), "drainTop", 2);
+
+      addPathCurve(makeCurvePath([
+        new THREE.CatmullRomCurve3([
+          drainStarts[1],
+          new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, drainStarts[1].y - 0.18, CONFIG.bed.z),
+          new THREE.Vector3(3.86, drainStarts[1].y - 0.25, 0.06),
+          new THREE.Vector3(outsideX, drainStarts[1].y - 0.1, outsideZ),
+          yJoin
+        ]),
+        sharedDrain
+      ]), "drainMiddle", 1);
+
+      addPathCurve(new THREE.CatmullRomCurve3([
+        drainStarts[0],
+        new THREE.Vector3(CONFIG.bed.x + CONFIG.bed.width / 2 - 0.16, drainStarts[0].y - 0.18, CONFIG.bed.z),
+        new THREE.Vector3(3.86, drainStarts[0].y - 0.45, 0.06),
+        new THREE.Vector3(3.58, 3.0, 0.55),
+        new THREE.Vector3(res.x + 0.55, 2.45, res.z + 0.18)
+      ]), "drainBottom", 0);
+
+      for (let i = 0; i < CONFIG.pump.particleBase; i++) {
+        const p = new THREE.Mesh(new THREE.SphereGeometry(0.052, 12, 8), materials.flow);
+        p.renderOrder = 20;
+        p.userData = {
+          pathIndex: i % flowPaths.length,
+          t: Math.random(),
+          phase: Math.random() * 10
+        };
+        flowGroup.add(p);
+        flowParticles.push(p);
+      }
+    }
+
+    function buildPathogenParticles() {
+      for (let i = 0; i < CONFIG.disease.pathogenParticleCount; i++) {
+        const p = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), materials.pathogen);
+        p.renderOrder = 21;
+        p.userData = {
+          pathIndex: i % Math.max(flowPaths.length, 1),
+          t: Math.random(),
+          phase: Math.random() * 10
+        };
+        p.visible = false;
+        pathogenGroup.add(p);
+        pathogenParticles.push(p);
+      }
+    }
+
+    function addPathCurve(curve, name, levelIndex) {
+      flowPaths.push({
+        name,
+        levelIndex,
+        curve,
+        weight: name === "main" ? 100 : CONFIG.flowDistribution[levelIndex] || 30
+      });
+    }
+
+    function makeCurvePath(curves) {
+      const path = new THREE.CurvePath();
+      curves.forEach(curve => path.add(curve));
+      return path;
+    }
+
+    function bindControls() {
+      [["flow1", 2], ["flow2", 1], ["flow3", 0]].forEach(([id, index]) => {
+        const input = document.getElementById(id);
+        const out = document.getElementById(`${id}Out`);
+        input.addEventListener("input", () => {
+          CONFIG.valveOpenings[index] = Number(input.value);
+          CONFIG.flowDistribution[index] = Number(input.value);
+          out.value = `${input.value}%`;
+          updateValveHandle(index);
+          flowPaths.forEach(path => {
+            if (path.levelIndex === index && path.name !== "main") path.weight = Number(input.value);
+          });
+        });
+      });
+
+      toggleButton("toggleFlow", "flow", flowGroup);
+      rootGroup.visible = true;
+      bindNutrientControls();
+    }
+
+    function bindNutrientControls() {
+      const controls = [
+        ["solutionA", "ferticare222Ml", "ml"],
+        ["solutionB", "calMagMl", "ml"],
+        ["solutionVolume", "volumeL", "L"],
+        ["airTemp", "airTempC", "℃"],
+        ["humidity", "humidityPct", "%"],
+        ["ppfd", "ppfd", ""]
+      ];
+      controls.forEach(([id, key, unit]) => {
+        const input = document.getElementById(id);
+        const out = document.getElementById(`${id}Out`);
+        input.addEventListener("input", () => {
+          CONFIG.nutrientSim[key] = Number(input.value);
+          out.value = `${input.value}${unit}`;
+          updateNutrientSimulation();
+          updateDiseaseSimulation();
+        });
+      });
+      bindDiseaseControls();
+    }
+
+    function bindDiseaseControls() {
+      [
+        ["diseasePressure", "pressure", "%"],
+        ["neglectDays", "neglectDays", "일"]
+      ].forEach(([id, key, unit]) => {
+        const input = document.getElementById(id);
+        const out = document.getElementById(`${id}Out`);
+        input.addEventListener("input", () => {
+          CONFIG.disease[key] = Number(input.value);
+          out.value = `${input.value}${unit}`;
+          updateDiseaseSimulation();
+        });
+      });
+    }
+
+    function updateNutrientSimulation() {
+      const sim = CONFIG.nutrientSim;
+      const balancePenalty = 1 - Math.min(Math.abs(sim.ferticare222Ml - sim.calMagMl) / Math.max(sim.ferticare222Ml, sim.calMagMl, 1), 1) * 0.18;
+      const ec = sim.baseEc + ((sim.ferticare222Ml * 0.72) + (sim.calMagMl * 0.46)) / sim.volumeL;
+      const ecScore = trapezoidScore(ec, 0.75, 1.15, 1.8, 2.45);
+      const tempScore = trapezoidScore(sim.airTempC, 14, 20, 24, 30);
+      const humidityScore = trapezoidScore(sim.humidityPct, 45, 55, 75, 86);
+      const lightScore = trapezoidScore(sim.ppfd, 120, 200, 250, 340);
+      const growthScore = Math.round(100 * ecScore * tempScore * humidityScore * lightScore * balancePenalty);
+
+      document.getElementById("ecReadout").textContent = `${ec.toFixed(2)} mS/cm`;
+      document.getElementById("growthReadout").textContent = `${growthScore}%`;
+      document.getElementById("growthStatus").textContent = growthStatus(ec, growthScore, balancePenalty);
+    }
+
+    function updateDiseaseSimulation() {
+      if (!diseaseOverlays.length) return;
+      const sim = CONFIG.nutrientSim;
+      const humidityStress = Math.max(0, sim.humidityPct - 70) * 0.9;
+      const tempStress = sim.airTempC > 25 ? (sim.airTempC - 25) * 2.4 : 0;
+      const ec = sim.baseEc + ((sim.ferticare222Ml * 0.72) + (sim.calMagMl * 0.46)) / sim.volumeL;
+      const ecStress = Math.max(0, ec - 2.0) * 28 + Math.max(0, 0.9 - ec) * 18;
+      const neglectStress = CONFIG.disease.neglectDays * 5.5;
+      const pressure = CONFIG.disease.pressure + humidityStress + tempStress + ecStress + neglectStress;
+      const infectedCount = Math.min(diseaseOverlays.length, Math.round(diseaseOverlays.length * THREE.MathUtils.clamp(pressure / 130, 0, 0.85)));
+      const sorted = [...diseaseOverlays].sort((a, b) => a.userData.rank - b.userData.rank);
+      sorted.forEach((overlay, index) => {
+        overlay.visible = index < infectedCount;
+        const progress = THREE.MathUtils.clamp((pressure - index * 2.4) / 100, 0.35, 1.25);
+        overlay.scale.setScalar(progress);
+      });
+      updateRootBrowning(pressure, infectedCount);
+
+      pathogenRisk = infectedCount === 0 ? 0 : THREE.MathUtils.clamp((infectedCount / diseaseOverlays.length) * 0.72 + CONFIG.disease.neglectDays / 18, 0, 1);
+      document.getElementById("diseaseCountReadout").textContent = `${infectedCount}/${diseaseOverlays.length}`;
+      document.getElementById("pathogenRiskReadout").textContent = pathogenRiskLabel(pathogenRisk);
+      document.getElementById("diseaseActionReadout").textContent = infectedCount > 0 && CONFIG.disease.neglectDays > 3 ? "격리/제거" : infectedCount > 0 ? "즉시 확인" : "관찰";
+    }
+
+    function pathogenRiskLabel(risk) {
+      if (risk > 0.66) return "높음";
+      if (risk > 0.34) return "중간";
+      return "낮음";
+    }
+
+    function updateRootBrowning(pressure, infectedCount) {
+      if (!rootSystems.length) return;
+      rootSystems.forEach(rootSystem => {
+        const diseaseFactor = rootSystem.userData.rank < infectedCount / Math.max(rootSystems.length, 1) ? 0.45 : 0;
+        const stress = THREE.MathUtils.clamp(pressure / 135 + diseaseFactor, 0, 1);
+        const color = new THREE.Color();
+        if (stress < 0.5) {
+          color.copy(materials.rootHealthy).lerp(materials.rootCream, stress * 2);
+        } else {
+          color.copy(materials.rootCream).lerp(materials.rootBrown, (stress - 0.5) * 2);
+        }
+        rootSystem.children.forEach(line => {
+          line.material.color.copy(color);
+          line.material.opacity = THREE.MathUtils.lerp(0.96, 0.72, stress);
+        });
+      });
+    }
+
+    function trapezoidScore(value, min, optMin, optMax, max) {
+      if (value <= min || value >= max) return 0.22;
+      if (value >= optMin && value <= optMax) return 1;
+      if (value < optMin) return 0.22 + ((value - min) / (optMin - min)) * 0.78;
+      return 0.22 + ((max - value) / (max - optMax)) * 0.78;
+    }
+
+    function growthStatus(ec, score, balancePenalty) {
+      if (balancePenalty < 0.86) return "A/B 불균형";
+      if (ec < 1.0) return "EC 낮음";
+      if (ec > 2.1) return "EC 높음";
+      if (score >= 85) return "적정";
+      if (score >= 65) return "보통";
+      return "스트레스";
+    }
+
+    function toggleButton(id, key, group) {
+      const button = document.getElementById(id);
+      button.addEventListener("click", () => {
+        CONFIG.display[key] = !CONFIG.display[key];
+        group.visible = CONFIG.display[key];
+        if (key === "labels") {
+          setLabelDomVisible(CONFIG.display.labels);
+        }
+        button.classList.toggle("active", CONFIG.display[key]);
+      });
+    }
+
+    function setLabelDomVisible(visible) {
+      labelGroup.traverse(object => {
+        if (object.isCSS2DObject && object.element) {
+          object.element.style.display = visible ? "" : "none";
+        }
+      });
+      labelRenderer.domElement.style.display = visible ? "" : "none";
+    }
+
+    function updateWaterLevel() {
+      waterPlanes.forEach(water => {
+        water.position.y = water.userData.baseY + CONFIG.nutrient.waterLevel;
+        water.scale.y = 1;
+      });
+    }
+
+    function addBox(materialKey, size, position, shadow) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), materials[materialKey]);
+      mesh.position.set(...position);
+      mesh.castShadow = shadow;
+      mesh.receiveShadow = shadow;
+      scene.add(mesh);
+      return mesh;
+    }
+
+    function addPipe(start, end, radius, material) {
+      const direction = new THREE.Vector3().subVectors(end, start);
+      const length = direction.length();
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 18), material);
+      mesh.position.copy(start).add(end).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+      mesh.castShadow = true;
+      scene.add(mesh);
+      return mesh;
+    }
+
+    function addCorrugatedPipe(start, end, radius, material) {
+      const pipe = addPipe(start, end, radius, material);
+      const direction = new THREE.Vector3().subVectors(end, start);
+      const length = direction.length();
+      const unit = direction.clone().normalize();
+      const ringCount = Math.max(6, Math.floor(length / 0.16));
+      for (let i = 1; i < ringCount; i++) {
+        const t = i / ringCount;
+        const center = start.clone().lerp(end, t);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.12, radius * 0.16, 8, 18), materials.hoseRib);
+        ring.position.copy(center);
+        ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), unit);
+        ring.castShadow = true;
+        scene.add(ring);
+      }
+      return pipe;
+    }
+
+    function addCorrugatedHoseCurve(points, radius) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const hose = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 72, radius, 18, false),
+        materials.hose
+      );
+      hose.castShadow = true;
+      scene.add(hose);
+
+      const ringCount = 34;
+      for (let i = 1; i < ringCount; i++) {
+        const t = i / ringCount;
+        const center = curve.getPointAt(t);
+        const tangent = curve.getTangentAt(t).normalize();
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(radius * 1.06, radius * 0.14, 8, 18),
+          materials.hoseRib
+        );
+        ring.position.copy(center);
+        ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
+        ring.castShadow = true;
+        scene.add(ring);
+      }
+
+      return hose;
+    }
+
+    function addSmoothHoseCurve(points, radius, material) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const hose = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 72, radius, 18, false),
+        material
+      );
+      hose.castShadow = true;
+      scene.add(hose);
+      return hose;
+    }
+
+    function addCableCurve(points, radius, material) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const cable = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 32, radius, 10, false),
+        material
+      );
+      cable.castShadow = true;
+      scene.add(cable);
+      return cable;
+    }
+
+    function addLabel(text, position) {
+      return null;
+      const div = document.createElement("div");
+      div.className = "label";
+      div.textContent = text;
+      const label = new CSS2DObject(div);
+      label.position.copy(position);
+      div.style.display = CONFIG.display.labels ? "" : "none";
+      labelGroup.add(label);
+      return label;
+    }
+
+    function animate(time) {
+      requestAnimationFrame(animate);
+      const dt = time * 0.001;
+      const speed = CONFIG.pump.flowRate / 4200;
+
+      flowParticles.forEach((particle, i) => {
+        let path = flowPaths[particle.userData.pathIndex];
+        if (!path || (path.name !== "main" && path.weight <= 0)) {
+          particle.visible = false;
+          return;
+        }
+        particle.visible = CONFIG.display.flow && (path.name === "main" || ((i * 17) % 100) < path.weight);
+        particle.userData.t = (particle.userData.t + speed * (0.65 + path.weight / 180)) % 1;
+        const pos = path.curve.getPointAt(particle.userData.t);
+        particle.position.copy(pos);
+      });
+
+      pathogenParticles.forEach((particle, i) => {
+        const path = flowPaths[particle.userData.pathIndex];
+        if (!path || pathogenRisk <= 0.08) {
+          particle.visible = false;
+          return;
+        }
+        particle.visible = CONFIG.display.flow && ((i * 13) % 100) < pathogenRisk * 100;
+        particle.userData.t = (particle.userData.t + speed * (0.42 + pathogenRisk)) % 1;
+        const pos = path.curve.getPointAt(particle.userData.t);
+        particle.position.copy(pos);
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+    }
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate(0);
+  </script>
+</body>
+</html>
