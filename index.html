@@ -506,10 +506,10 @@
       });
 
       [...levelY, topPanelY].forEach((y) => {
-        const board = addBox("brown", [width - 0.28, CONFIG.rack.shelfThickness, depth - 0.18], [-0.06, y + 0.08, 0], true);
+        const board = addBox("brown", [width - 0.95, CONFIG.rack.shelfThickness, depth - 0.42], [-0.25, y + 0.08, 0], true);
         board.receiveShadow = true;
-        addBox("shelfEdge", [width - 0.22, 0.055, 0.08], [-0.06, y + 0.02, -depth / 2 + 0.09], true);
-        addBox("shelfEdge", [width - 0.22, 0.055, 0.08], [-0.06, y + 0.02, depth / 2 - 0.09], true);
+        addBox("shelfEdge", [width - 0.84, 0.055, 0.08], [-0.25, y + 0.02, -depth / 2 + 0.22], true);
+        addBox("shelfEdge", [width - 0.84, 0.055, 0.08], [-0.25, y + 0.02, depth / 2 - 0.22], true);
       });
 
       addLabel("금속 앵글 랙 1.2m x 0.6m x 2.5m", new THREE.Vector3(-4.05, 14.8, -1.6));
